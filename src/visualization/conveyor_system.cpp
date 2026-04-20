@@ -1,4 +1,5 @@
 #include "visualization/conveyor_system.hpp"
+#include "core/cell_solver.hpp"
 
 using namespace threepp;
 using namespace cellgen;
@@ -54,8 +55,9 @@ std::shared_ptr<Object3D> makeBeltMesh(float length_m,
 // ---------------------------------------------------------------------------
 
 ConveyorSystem::ConveyorSystem(Scene& scene, WallSystem& walls,
-                               int initial_width_mm, int initial_depth_mm)
-    : scene_(scene), walls_(walls)
+                               int initial_width_mm, int initial_depth_mm,
+                               float demo_radius_m)
+    : scene_(scene), walls_(walls), demo_radius_m_(demo_radius_m)
 {
     rebuild(initial_width_mm, initial_depth_mm);
 }
@@ -80,8 +82,6 @@ void ConveyorSystem::rebuild(int width_mm, int depth_mm) {
     const float opening_w = kBeltWidth_m + 2.0f * kOpeningClearance;
 
     // ── Step 1: register WallComponents with preferred positions ─────────────
-    // setComponents() triggers buildAllWalls(), which solves all fence segments
-    // and writes the snapped actual_center_m back into each component.
     walls_.setComponents({
         { WEST,  { "input_belt",    opening_w, kInputOffsetZ_m  } },
         { NORTH, { "output_belt",   opening_w, kOutputOffsetX_m } },
@@ -100,13 +100,23 @@ void ConveyorSystem::rebuild(int width_mm, int depth_mm) {
     for (const auto& c : walls_.componentsForWall(NORTH))
         if (c.id == "output_belt") output_x = c.actual_center_m;
 
-    // ── Step 3: build belt meshes at actual positions ─────────────────────────
+    // ── Step 3: solve robot placement ────────────────────────────────────────
+    // Find the intersection of the two belt lines, inscribe the work-circle,
+    // and compute the required input-belt inner extent.
+    last_solution_ = solveRobotPlacement(
+        BeltLines{ input_z, output_x },
+        demo_radius_m_,
+        hw
+    );
+
+    // ── Step 4: build belt meshes at actual positions ─────────────────────────
 
     // Input belt (WEST wall → runs along X, east-west).
-    // Extends kExternalExtent_m outside and kInternalExtent_m inside the cell.
+    // Extends kExternalExtent_m outside the cell; the inner extent is set by
+    // the solver so the belt reaches the robot's tangent point.
     {
         const float x_start = -(hw + kExternalExtent_m);
-        const float x_end   = -(hw - kInternalExtent_m);
+        const float x_end   = -(hw - last_solution_.input_belt_inner_m);
         const float length  = x_end - x_start;
         const float cx      = (x_start + x_end) * 0.5f;
 
@@ -117,7 +127,6 @@ void ConveyorSystem::rebuild(int width_mm, int depth_mm) {
     }
 
     // Output belt (SOUTH → NORTH, runs along Z, north-south).
-    // Empty pallets enter from the south; full pallets exit through the north.
     {
         const float z_start = -(hd + kExternalExtent_m);
         const float z_end   = +(hd + kExternalExtent_m);

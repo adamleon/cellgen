@@ -29,6 +29,10 @@ public:
     RobotSystem(threepp::Scene& scene, const Spec& spec);
     ~RobotSystem();
 
+    // Move the robot base to (x_m, 0, z_m) and update the work-circle overlay.
+    // work_radius_m = 0 removes the circle.  Call before onCellResized().
+    void setPosition(float x_m, float z_m, float work_radius_m = 0.0f);
+
     // Call once per frame (or whenever dimensions change).
     void onCellResized(int width_mm, int depth_mm);
 
@@ -37,11 +41,15 @@ public:
 
 private:
     bool fitsInCell(int width_mm, int depth_mm) const;
+    void setCircleVisible(bool visible);
 
     threepp::Scene& scene_;
     Spec            spec_;
 
     std::shared_ptr<threepp::Robot> robot_;
+    std::shared_ptr<threepp::Mesh>  work_circle_;
+    float work_radius_m_ = 0.0f;
+
     bool in_scene_ = false;
 
     int last_width_mm_  = 0;

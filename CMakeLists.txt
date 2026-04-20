@@ -21,6 +21,7 @@ find_package(assimp REQUIRED)
 add_executable(CellGen
     src/main.cpp
     src/core/fence_catalog.cpp
+    src/core/cell_solver.cpp
     src/visualization/cell_renderer.cpp
     src/visualization/wall_system.cpp
     src/visualization/conveyor_system.cpp
@@ -55,7 +56,9 @@ enable_testing()
 add_executable(CellGenTests
     tests/test_fence_catalog.cpp
     tests/test_wall_layout.cpp
+    tests/test_cell_solver.cpp
     src/core/fence_catalog.cpp
+    src/core/cell_solver.cpp
 )
 
 target_include_directories(CellGenTests PRIVATE

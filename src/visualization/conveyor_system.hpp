@@ -2,6 +2,7 @@
 
 #include <threepp/threepp.hpp>
 #include "visualization/wall_system.hpp"
+#include "core/cell_solver.hpp"
 
 namespace cellgen {
 
@@ -37,26 +38,33 @@ public:
     static constexpr float kBeltSurfaceH_m   = 0.40f;   // 400 mm above floor
     // How far each belt extends outside the cell walls.
     static constexpr float kExternalExtent_m = 1.00f;
-    // How far the input belt reaches inside the cell from the west wall.
-    static constexpr float kInternalExtent_m = 1.50f;
     // Extra clearance (per side) added to the opening width in the wall.
     static constexpr float kOpeningClearance = 0.05f;
 
+    // demo_radius_m – radius of the work-circle tangent to both belt lines.
+    // The input-belt internal extent and robot position are derived from this.
     ConveyorSystem(threepp::Scene& scene,
                    WallSystem&     walls,
                    int             initial_width_mm,
-                   int             initial_depth_mm);
+                   int             initial_depth_mm,
+                   float           demo_radius_m = 0.5f);
     ~ConveyorSystem();
 
     // Rebuilds belt geometry and re-registers wall openings.
     // Must be called whenever the cell is resized.
     void onCellResized(int width_mm, int depth_mm);
 
+    // Latest robot-placement solution (valid after construction / onCellResized).
+    const CellSolution& solution() const { return last_solution_; }
+
 private:
     void rebuild(int width_mm, int depth_mm);
 
     threepp::Scene& scene_;
     WallSystem&     walls_;
+    float           demo_radius_m_;
+
+    CellSolution last_solution_{};
 
     std::shared_ptr<threepp::Object3D> input_belt_;
     std::shared_ptr<threepp::Object3D> output_belt_;

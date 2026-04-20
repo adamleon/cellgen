@@ -43,7 +43,12 @@ int main() {
     cellgen::WallSystem walls(*scene, *camera, canvas, controls, catalog_dir, 4000, 3000);
 
     // ── Conveyors ────────────────────────────────────────────────────────────
-    cellgen::ConveyorSystem conveyors(*scene, walls, walls.widthMm(), walls.depthMm());
+    // demo_radius_m: radius of the work-circle tangent to both belt lines.
+    // The input-belt internal extent and robot position are derived from this.
+    constexpr float kDemoRadius_m = 0.5f;
+    cellgen::ConveyorSystem conveyors(*scene, walls,
+                                      walls.widthMm(), walls.depthMm(),
+                                      kDemoRadius_m);
 
     // ── Robot ────────────────────────────────────────────────────────────────
     // KR10 R1100-2: reach 1100 mm.  Fits whenever min(width, depth) > 1100 mm.
@@ -55,7 +60,11 @@ int main() {
             .name      = "KUKA KR10 R1100-2",
         });
 
-    // Seed the fit check with the initial cell dimensions.
+    // Seed position and fit check with the initial cell layout.
+    {
+        const auto& sol = conveyors.solution();
+        robot.setPosition(sol.robot_x_m, sol.robot_z_m, kDemoRadius_m);
+    }
     robot.onCellResized(walls.widthMm(), walls.depthMm());
 
     int prev_width = walls.widthMm();
@@ -67,6 +76,8 @@ int main() {
         const int d = walls.depthMm();
         if (w != prev_width || d != prev_depth) {
             conveyors.onCellResized(w, d);
+            const auto& sol = conveyors.solution();
+            robot.setPosition(sol.robot_x_m, sol.robot_z_m, kDemoRadius_m);
             robot.onCellResized(w, d);
             prev_width = w;
             prev_depth = d;
